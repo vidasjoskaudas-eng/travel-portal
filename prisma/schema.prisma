@@ -1,0 +1,151 @@
+// Prisma schema for Travel Portal
+// SQLite for development, PostgreSQL for production
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+// User model for authentication
+model User {
+  id            String    @id @default(cuid())
+  name          String?
+  email         String    @unique
+  emailVerified DateTime?
+  password      String?
+  image         String?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  accounts      Account[]
+  sessions      Session[]
+  trips         Trip[]    @relation("TripCreator")
+  tripMembers   TripMember[]
+  posts         Post[]
+  ideas         Idea[]
+}
+
+// NextAuth Account model
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String?
+  access_token      String?
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String?
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+}
+
+// NextAuth Session model
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+// Verification token for email verification
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+}
+
+// Trip model - main entity for travel plans
+model Trip {
+  id        Int       @id @default(autoincrement())
+  title     String    // kelionės pavadinimas
+  location  String    // vieta / šalis / miestas
+  startDate DateTime  // kelionės pradžia
+  endDate   DateTime  // kelionės pabaiga
+  notes     String?   // neprivalomas aprašymas
+  createdAt DateTime  @default(now())
+
+  creatorId String
+  creator   User      @relation("TripCreator", fields: [creatorId], references: [id], onDelete: Cascade)
+
+  members     TripMember[]
+  activities  Activity[]
+  posts       Post[]
+}
+
+// Post - posts within a trip (e.g. updates, notes)
+model Post {
+  id        String   @id @default(cuid())
+  title     String
+  content   String
+  imageUrl  String?
+  createdAt DateTime @default(now())
+
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tripId    Int
+  trip      Trip     @relation(fields: [tripId], references: [id], onDelete: Cascade)
+}
+
+// Trip membership - who's invited/joined
+model TripMember {
+  id        String   @id @default(cuid())
+  tripId    Int
+  userId    String
+  role      String   @default("member")
+  status    String   @default("pending")
+  joinedAt  DateTime @default(now())
+
+  trip      Trip     @relation(fields: [tripId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([tripId, userId])
+}
+
+// Activity within a trip
+model Activity {
+  id          String   @id @default(cuid())
+  tripId      Int
+  title       String
+  description String?
+  location    String?
+  date        DateTime
+  time        String?
+  cost        Float?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  trip        Trip     @relation(fields: [tripId], references: [id], onDelete: Cascade)
+}
+
+// Idėjų lenta – diskusijos / idėjos (Bendradarbiaukite)
+model Idea {
+  id        String   @id @default(cuid())
+  content   String
+  authorId  String?
+  createdAt DateTime @default(now())
+
+  author User? @relation(fields: [authorId], references: [id], onDelete: SetNull)
+}
+
+// Kelionės detalės – biudžetas, valiuta, dalyvių sk., užrašai (Tvarkykite detales)
+model TripDetail {
+  id              String   @id @default(cuid())
+  budget          Float?
+  currency        String?
+  participantCount Int?
+  notes           String?
+  createdAt       DateTime @default(now())
+}
