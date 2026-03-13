@@ -1,12 +1,12 @@
 // Prisma schema for Travel Portal
-// SQLite for development, PostgreSQL for production
+// PostgreSQL (Supabase)
 
 generator client {
   provider = "prisma-client-js"
 }
 
 datasource db {
-  provider = "sqlite"
+  provider = "postgresql"
   url      = env("DATABASE_URL")
 }
 
