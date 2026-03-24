@@ -21,7 +21,14 @@ export async function GET() {
     const trips = await db.trip.findMany({
       where: {
         OR: [
-          { creatorId: session.user.id },
+          { organizerId: session.user.id },
+          {
+            participants: {
+              some: {
+                userId: session.user.id,
+              },
+            },
+          },
           {
             members: {
               some: {
@@ -99,6 +106,13 @@ export async function POST(request: NextRequest) {
         endDate: end,
         notes: notes || null,
         creatorId: session.user.id,
+        organizerId: session.user.id,
+        participants: {
+          create: {
+            userId: session.user.id,
+            role: "ORGANIZER",
+          },
+        },
       },
     });
 

@@ -21,7 +21,7 @@ export async function POST(
       return NextResponse.json({ error: "Neprisijungęs" }, { status: 401 });
     }
 
-    // Check if trip exists and user is the creator
+    // Check if trip exists and user is the organizer
     const trip = await db.trip.findUnique({
       where: { id: tripId },
     });
@@ -30,7 +30,7 @@ export async function POST(
       return NextResponse.json({ error: "Kelionė nerasta" }, { status: 404 });
     }
 
-    if (trip.creatorId !== session.user.id) {
+    if (trip.organizerId !== session.user.id) {
       return NextResponse.json(
         { error: "Tik kelionės organizatorius gali kviesti dalyvius" },
         { status: 403 }

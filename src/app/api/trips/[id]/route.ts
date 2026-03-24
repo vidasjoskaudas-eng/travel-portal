@@ -28,7 +28,7 @@ export async function PATCH(
       return NextResponse.json({ error: "Kelionė nerasta" }, { status: 404 });
     }
 
-    if (trip.creatorId !== session.user.id) {
+    if (trip.organizerId !== session.user.id) {
       return NextResponse.json(
         { error: "Tik kelionės organizatorius gali redaguoti" },
         { status: 403 }
@@ -101,7 +101,7 @@ export async function DELETE(
       return NextResponse.json({ error: "Kelionė nerasta" }, { status: 404 });
     }
 
-    if (trip.creatorId !== session.user.id) {
+    if (trip.organizerId !== session.user.id) {
       return NextResponse.json(
         { error: "Tik kelionės organizatorius gali ištrinti kelionę" },
         { status: 403 }

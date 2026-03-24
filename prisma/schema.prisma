@@ -21,12 +21,14 @@ model User {
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
 
-  accounts    Account[]
-  sessions    Session[]
-  trips       Trip[]       @relation("TripCreator")
-  tripMembers TripMember[]
-  posts       Post[]
-  ideas       Idea[]
+  accounts          Account[]
+  sessions          Session[]
+  createdTrips      Trip[]            @relation("TripCreator")
+  organizedTrips    Trip[]            @relation("TripOrganizer")
+  tripMembers       TripMember[]
+  tripParticipants  TripParticipant[]
+  posts             Post[]
+  ideas             Idea[]
 }
 
 // NextAuth Account model
@@ -79,8 +81,11 @@ model Trip {
 
   creatorId String
   creator   User   @relation("TripCreator", fields: [creatorId], references: [id], onDelete: Cascade)
+  organizerId String
+  organizer   User   @relation("TripOrganizer", fields: [organizerId], references: [id], onDelete: Cascade)
 
   members    TripMember[]
+  participants TripParticipant[]
   activities Activity[]
   posts      Post[]
 }
@@ -107,6 +112,23 @@ model TripMember {
   role     String   @default("member")
   status   String   @default("pending")
   joinedAt DateTime @default(now())
+
+  trip Trip @relation(fields: [tripId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([tripId, userId])
+}
+
+enum TripParticipantRole {
+  ORGANIZER
+  PARTICIPANT
+}
+
+model TripParticipant {
+  id     String              @id @default(cuid())
+  tripId Int
+  userId String
+  role   TripParticipantRole @default(PARTICIPANT)
 
   trip Trip @relation(fields: [tripId], references: [id], onDelete: Cascade)
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)

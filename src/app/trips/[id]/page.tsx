@@ -37,6 +37,10 @@ export default async function TripDetailPage({ params }: Props) {
           },
         },
       },
+      participants: {
+        where: { userId: session.user.id },
+        select: { role: true },
+      },
       activities: {
         orderBy: { date: "asc" },
       },
@@ -48,7 +52,9 @@ export default async function TripDetailPage({ params }: Props) {
   }
 
   // Check if user has access to this trip
-  const isCreator = trip.creatorId === session.user.id;
+  const isOrganizer =
+    trip.organizerId === session.user.id ||
+    trip.participants.some((p) => p.role === "ORGANIZER");
   const isMember = trip.members.some(
     (m) => m.userId === session.user.id && m.status === "accepted"
   );
@@ -56,7 +62,7 @@ export default async function TripDetailPage({ params }: Props) {
     (m) => m.userId === session.user.id && m.status === "pending"
   );
 
-  if (!isCreator && !isMember && !isPending) {
+  if (!isOrganizer && !isMember && !isPending) {
     redirect("/trips");
   }
 
@@ -90,7 +96,7 @@ export default async function TripDetailPage({ params }: Props) {
               <h1 className="text-3xl font-bold text-white drop-shadow-md">{trip.title}</h1>
               <p className="text-lg text-gray-200 mt-1">📍 {trip.location}</p>
             </div>
-            {isCreator && (
+            {isOrganizer && (
               <div className="flex items-center gap-3">
                 <Link href={`/trips/${trip.id}/edit`}>
                   <Button variant="dark">Redaguoti</Button>
@@ -183,7 +189,7 @@ export default async function TripDetailPage({ params }: Props) {
                 <h2 className="text-lg font-semibold text-white">
                   Veiklos ({trip.activities.length})
                 </h2>
-                {(isCreator || isMember) && (
+                {isOrganizer && (
                   <Link href={`/trips/${trip.id}/activities/new`}>
                     <Button variant="dark" size="sm">+ Pridėti</Button>
                   </Link>
@@ -192,7 +198,7 @@ export default async function TripDetailPage({ params }: Props) {
               {trip.activities.length === 0 ? (
                 <div className="text-center py-8">
                   <p className="text-gray-300">Dar nėra pridėtų veiklų</p>
-                  {(isCreator || isMember) && (
+                  {isOrganizer && (
                     <Link href={`/trips/${trip.id}/activities/new`}>
                       <Button variant="dark" size="sm" className="mt-3">
                         Pridėti pirmą veiklą
@@ -228,7 +234,7 @@ export default async function TripDetailPage({ params }: Props) {
                               €{activity.cost.toFixed(2)}
                             </span>
                           )}
-                          {isCreator && (
+                          {isOrganizer && (
                             <div className="flex flex-wrap gap-2 justify-end">
                               <Link
                                 href={`/trips/${trip.id}/activities/${activity.id}/edit`}
@@ -264,7 +270,7 @@ export default async function TripDetailPage({ params }: Props) {
             <div className="rounded-lg bg-black/30 backdrop-blur-md border border-white/20 p-6">
               <div className="flex flex-row items-center justify-between mb-4">
                 <h2 className="text-lg font-semibold text-white">Dalyviai</h2>
-                {isCreator && (
+                {isOrganizer && (
                   <Link href={`/trips/${trip.id}/invite`}>
                     <Button size="sm" variant="dark">
                       Pakviesti

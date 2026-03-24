@@ -34,7 +34,8 @@ export async function POST(
       return NextResponse.json({ error: "Kelionė nerasta" }, { status: 404 });
     }
 
-    const isCreator = trip.creatorId === session.user.id;
+    const isCreator =
+      trip.organizerId === session.user.id || trip.creatorId === session.user.id;
     const isMember = trip.members.length > 0;
 
     if (!isCreator && !isMember) {
@@ -110,7 +111,8 @@ export async function GET(
       return NextResponse.json({ error: "Kelionė nerasta" }, { status: 404 });
     }
 
-    const isCreator = trip.creatorId === session.user.id;
+    const isCreator =
+      trip.organizerId === session.user.id || trip.creatorId === session.user.id;
     const isMember = trip.members.some((m) => m.status === "accepted");
     const isPending = trip.members.some((m) => m.status === "pending");
 

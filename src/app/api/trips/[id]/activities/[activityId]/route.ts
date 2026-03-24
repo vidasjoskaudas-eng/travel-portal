@@ -34,7 +34,11 @@ export async function PATCH(
       return NextResponse.json({ error: "Veikla nerasta" }, { status: 404 });
     }
 
-    if (activity.trip.creatorId !== session.user.id) {
+    const isOrganizer =
+      activity.trip.organizerId === session.user.id ||
+      activity.trip.creatorId === session.user.id;
+
+    if (!isOrganizer) {
       return NextResponse.json(
         { error: "Neturite teisės redaguoti šios veiklos" },
         { status: 403 }
@@ -100,7 +104,11 @@ export async function DELETE(
       return NextResponse.json({ error: "Veikla nerasta" }, { status: 404 });
     }
 
-    if (activity.trip.creatorId !== session.user.id) {
+    const isOrganizer =
+      activity.trip.organizerId === session.user.id ||
+      activity.trip.creatorId === session.user.id;
+
+    if (!isOrganizer) {
       return NextResponse.json(
         { error: "Neturite teisės ištrinti šios veiklos" },
         { status: 403 }
