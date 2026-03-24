@@ -19,7 +19,7 @@ export default async function TripDetailPage({ params }: Props) {
     notFound();
   }
 
-  if (!session?.user) {
+  if (!session?.user?.id) {
     redirect("/login");
   }
 

@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/Button";
 export default async function DashboardPage() {
   const session = await getServerSession(authOptions);
 
-  if (!session?.user) {
+  if (!session?.user?.id) {
     redirect("/login");
   }
 

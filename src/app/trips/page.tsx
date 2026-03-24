@@ -9,7 +9,7 @@ import { CreateTripForm } from "@/components/CreateTripForm";
 export default async function TripsPage() {
   const session = await getServerSession(authOptions);
 
-  if (!session?.user) {
+  if (!session?.user?.id) {
     redirect("/login");
   }
 
