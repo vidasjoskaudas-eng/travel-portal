@@ -6,7 +6,6 @@ export async function POST(request: NextRequest) {
   try {
     const { name, email, password } = await request.json();
 
-    // Validate input
     if (!email || !password) {
       return NextResponse.json(
         { error: "Email ir slaptažodis privalomi" },
@@ -21,9 +20,10 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Check if user exists
-    const existingUser = await db.user.findUnique({
-      where: { email },
+    const emailNormalized = String(email).trim().toLowerCase();
+
+    const existingUser = await db.user.findFirst({
+      where: { email: { equals: emailNormalized, mode: "insensitive" } },
     });
 
     if (existingUser) {
@@ -40,7 +40,7 @@ export async function POST(request: NextRequest) {
     const user = await db.user.create({
       data: {
         name,
-        email,
+        email: emailNormalized,
         password: hashedPassword,
       },
     });

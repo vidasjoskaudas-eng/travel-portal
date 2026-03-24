@@ -17,9 +17,9 @@ export const authOptions: NextAuthOptions = {
         if (!credentials?.email || !credentials?.password) {
           throw new Error("Email ir slaptažodis privalomi");
         }
-
-        const user = await db.user.findUnique({
-          where: { email: credentials.email },
+        const emailNorm = String(credentials.email).trim().toLowerCase();
+        const user = await db.user.findFirst({
+          where: { email: { equals: emailNorm, mode: "insensitive" } },
         });
 
         if (!user || !user.password) {

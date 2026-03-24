@@ -97,11 +97,16 @@ datasource db {
 DATABASE_URL="postgresql://user:password@host:5432/database"
 ```
 
-3. Paleiskite migraciją:
+3. Paleiskite migraciją (prieš DB, į kurią rodo `DATABASE_URL`):
 
 ```bash
-npx prisma migrate deploy
+npm run db:deploy
 ```
+arba `npx prisma migrate deploy`
+
+4. Production’e nustatykite **NEXTAUTH_URL** (pvz. `https://travel-portal-mu.vercel.app`) ir **NEXTAUTH_SECRET**.
+
+**Kvietimo dalyvio funkcija production’e:** jei prod grąžina „Vartotojas su šiuo el. paštu nerastas“, o local veikia – žr. [docs/PRODUCTION-INVITE-SETUP.md](docs/PRODUCTION-INVITE-SETUP.md) (DB, migracijos, vartotojai prod DB, NEXTAUTH_URL, RLS).
 
 ## Licencija
 

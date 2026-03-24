@@ -51,3 +51,6 @@ dev.db-journal
 
 # Cursor
 .cursor
+
+# Accidental path-paste / stray log files (do not commit)
+ersEridasDesktoptravel-portal

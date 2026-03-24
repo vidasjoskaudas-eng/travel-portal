@@ -3,7 +3,8 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { db } from "@/lib/db";
 
-// POST - Invite a user to the trip
+// POST - Invite a user to the trip.
+// Visi užklausos atliekami per Prisma (DATABASE_URL). Nenaudojamas Supabase JS klientas – RLS „deny all“ taikomas tik DB rolės lygyje (jei connection eina su role, kuri bypass RLS, veikia).
 export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
@@ -36,24 +37,23 @@ export async function POST(
       );
     }
 
-    const { email } = await request.json();
-
-    if (!email) {
+    const body = await request.json();
+    const rawEmail = typeof body?.email === "string" ? body.email.trim() : "";
+    if (!rawEmail) {
       return NextResponse.json(
         { error: "El. pašto adresas privalomas" },
         { status: 400 }
       );
     }
-
-    // Find user by email
-    const invitedUser = await db.user.findUnique({
-      where: { email },
+    // Find user by email (case-insensitive: DB may have MixedCase from registration)
+    const invitedUser = await db.user.findFirst({
+      where: { email: { equals: rawEmail, mode: "insensitive" } },
     });
 
     if (!invitedUser) {
       return NextResponse.json(
         { error: "Vartotojas su šiuo el. paštu nerastas. Jis turi būti registruotas sistemoje." },
-        { status: 404 }
+        { status: 400 }
       );
     }
 
@@ -77,8 +77,8 @@ export async function POST(
 
     if (existingMember) {
       return NextResponse.json(
-        { error: "Šis vartotojas jau pakviestas į kelionę" },
-        { status: 400 }
+        { error: "Šis vartotojas jau yra dalyvis." },
+        { status: 409 }
       );
     }
 
@@ -93,14 +93,15 @@ export async function POST(
     });
 
     return NextResponse.json(
-      { message: "Kvietimas išsiųstas sėkmingai", member },
-      { status: 201 }
+      { message: "Kvietimas išsiųstas", email: invitedUser.email, member },
+      { status: 200 }
     );
   } catch (error) {
     console.error("Error inviting user:", error);
-    return NextResponse.json(
-      { error: "Įvyko klaida siunčiant kvietimą" },
-      { status: 500 }
-    );
+    const message =
+      error && typeof error === "object" && "code" in error
+        ? "Duomenų bazės klaida. Bandykite vėliau."
+        : "Įvyko klaida siunčiant kvietimą";
+    return NextResponse.json({ error: message }, { status: 500 });
   }
 }

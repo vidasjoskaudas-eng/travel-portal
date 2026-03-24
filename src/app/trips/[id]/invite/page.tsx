@@ -33,11 +33,11 @@ export default function InvitePage() {
       const data = await response.json();
 
       if (!response.ok) {
-        setError(data.error || "Įvyko klaida");
+        setError(data.error ?? "Įvyko klaida");
         return;
       }
 
-      setSuccess(`Kvietimas išsiųstas: ${email}`);
+      setSuccess(data.message ?? `Kvietimas išsiųstas: ${email}`);
       setEmail("");
     } catch {
       setError("Įvyko klaida. Bandykite dar kartą.");
