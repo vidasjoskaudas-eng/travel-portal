@@ -23,29 +23,116 @@ export default async function TripDetailPage({ params }: Props) {
     redirect("/login");
   }
 
-  // Get trip with all related data
-  const trip = await db.trip.findUnique({
-    where: { id: tripId },
-    include: {
-      creator: {
-        select: { id: true, name: true, email: true, image: true },
-      },
-      members: {
-        include: {
-          user: {
-            select: { id: true, name: true, email: true, image: true },
+  // Get trip data (roles schema first, fallback to legacy schema)
+  let trip:
+    | {
+        id: number;
+        title: string;
+        location: string;
+        notes: string | null;
+        startDate: Date;
+        endDate: Date;
+        creatorId: string;
+        organizerId: string;
+        creator: { id: string; name: string | null; email: string; image: string | null };
+        activities: Array<{
+          id: string;
+          title: string;
+          description: string | null;
+          location: string | null;
+          date: Date;
+          time: string | null;
+          cost: number | null;
+        }>;
+        participants: Array<{
+          id: string;
+          userId: string;
+          role: "ORGANIZER" | "PARTICIPANT";
+          user: { id: string; name: string | null; email: string; image: string | null };
+        }>;
+      }
+    | null = null;
+
+  try {
+    const row = await db.trip.findUnique({
+      where: { id: tripId },
+      include: {
+        creator: {
+          select: { id: true, name: true, email: true, image: true },
+        },
+        participants: {
+          include: {
+            user: {
+              select: { id: true, name: true, email: true, image: true },
+            },
           },
         },
+        activities: {
+          orderBy: { date: "asc" },
+        },
       },
-      participants: {
-        where: { userId: session.user.id },
-        select: { role: true },
+    });
+
+    if (row) {
+      trip = {
+        ...row,
+        participants: row.participants.map((p) => ({
+          ...p,
+          role: p.role === "ORGANIZER" ? "ORGANIZER" : "PARTICIPANT",
+        })),
+      };
+    }
+  } catch (error) {
+    console.error("Trip detail roles-query failed, using fallback:", error);
+    const row = await db.trip.findUnique({
+      where: { id: tripId },
+      include: {
+        creator: {
+          select: { id: true, name: true, email: true, image: true },
+        },
+        members: {
+          where: { status: "accepted" },
+          include: {
+            user: {
+              select: { id: true, name: true, email: true, image: true },
+            },
+          },
+        },
+        activities: {
+          orderBy: { date: "asc" },
+        },
       },
-      activities: {
-        orderBy: { date: "asc" },
-      },
-    },
-  });
+    });
+
+    if (row) {
+      trip = {
+        id: row.id,
+        title: row.title,
+        location: row.location,
+        notes: row.notes,
+        startDate: row.startDate,
+        endDate: row.endDate,
+        creatorId: row.creatorId,
+        organizerId: row.creatorId,
+        creator: row.creator,
+        activities: row.activities,
+        participants: [
+          {
+            id: `creator-${row.creator.id}`,
+            userId: row.creator.id,
+            role: "ORGANIZER" as const,
+            user: row.creator,
+          },
+          ...row.members.map((m) => ({
+            id: m.id,
+            userId: m.userId,
+            role: "PARTICIPANT" as const,
+            user: m.user,
+          })),
+        ],
+      };
+    }
+  }
 
   if (!trip) {
     notFound();
@@ -54,15 +141,14 @@ export default async function TripDetailPage({ params }: Props) {
   // Check if user has access to this trip
   const isOrganizer =
     trip.organizerId === session.user.id ||
-    trip.participants.some((p) => p.role === "ORGANIZER");
-  const isMember = trip.members.some(
-    (m) => m.userId === session.user.id && m.status === "accepted"
-  );
-  const isPending = trip.members.some(
-    (m) => m.userId === session.user.id && m.status === "pending"
+    trip.participants.some(
+      (p) => p.userId === session.user.id && p.role === "ORGANIZER"
+    );
+  const isParticipant = trip.participants.some(
+    (p) => p.userId === session.user.id
   );
 
-  if (!isOrganizer && !isMember && !isPending) {
+  if (!isOrganizer && !isParticipant) {
     redirect("/trips");
   }
 
@@ -106,36 +192,6 @@ export default async function TripDetailPage({ params }: Props) {
             )}
           </div>
         </div>
-
-        {/* Pending invitation banner */}
-        {isPending && (
-          <div className="mb-6 rounded-lg bg-amber-500/30 backdrop-blur-sm border border-amber-300/50 p-4">
-            <div className="flex items-center justify-between flex-wrap gap-3">
-              <div>
-                <p className="font-medium text-amber-100">
-                  Jūs gavote kvietimą prisijungti prie šios kelionės
-                </p>
-                <p className="text-sm text-amber-200/90 mt-1">
-                  Priimkite kvietimą, kad galėtumėte dalyvauti planavime.
-                </p>
-              </div>
-              <div className="flex gap-2">
-                <form action={`/api/trips/${trip.id}/respond`} method="POST">
-                  <input type="hidden" name="response" value="declined" />
-                  <Button variant="dark" size="sm" type="submit" className="!bg-gray-700">
-                    Atmesti
-                  </Button>
-                </form>
-                <form action={`/api/trips/${trip.id}/respond`} method="POST">
-                  <input type="hidden" name="response" value="accepted" />
-                  <Button variant="dark" size="sm" type="submit">
-                    Priimti
-                  </Button>
-                </form>
-              </div>
-            </div>
-          </div>
-        )}
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* Main content */}
@@ -292,31 +348,21 @@ export default async function TripDetailPage({ params }: Props) {
                     <p className="text-xs text-blue-200">Organizatorius</p>
                   </div>
                 </div>
-                {trip.members.map((member) => (
-                  <div key={member.id} className="flex items-center gap-3">
+                {trip.participants
+                  .filter((participant) => participant.userId !== trip.creatorId)
+                  .map((participant) => (
+                  <div key={participant.id} className="flex items-center gap-3">
                     <div className="w-10 h-10 bg-white/20 rounded-full flex items-center justify-center">
                       <span className="text-white font-medium">
-                        {member.user.name?.[0]?.toUpperCase() || "?"}
+                        {participant.user.name?.[0]?.toUpperCase() || "?"}
                       </span>
                     </div>
                     <div>
                       <p className="font-medium text-white">
-                        {member.user.name || member.user.email}
+                        {participant.user.name || participant.user.email}
                       </p>
-                      <p
-                        className={`text-xs ${
-                          member.status === "accepted"
-                            ? "text-green-300"
-                            : member.status === "pending"
-                            ? "text-amber-300"
-                            : "text-gray-400"
-                        }`}
-                      >
-                        {member.status === "accepted"
-                          ? "Dalyvauja"
-                          : member.status === "pending"
-                          ? "Laukia atsakymo"
-                          : "Atsisakė"}
+                      <p className="text-xs text-green-300">
+                        {participant.role === "ORGANIZER" ? "Organizatorius" : "Dalyvis"}
                       </p>
                     </div>
                   </div>
@@ -333,7 +379,7 @@ export default async function TripDetailPage({ params }: Props) {
                 <div className="flex justify-between">
                   <span>Dalyvių</span>
                   <span className="font-medium text-white">
-                    {trip.members.filter((m) => m.status === "accepted").length + 1}
+                    {trip.participants.length}
                   </span>
                 </div>
                 <div className="flex justify-between">

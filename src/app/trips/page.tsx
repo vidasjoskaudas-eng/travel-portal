@@ -13,39 +13,84 @@ export default async function TripsPage() {
     redirect("/login");
   }
 
-  // Get all user's trips (roles via TripParticipant)
-  const trips = await db.trip
-    .findMany({
-      where: {
-        OR: [
-          { organizerId: session.user.id },
-          {
-            participants: {
-              some: {
-                userId: session.user.id,
+  // Try new roles schema first, fallback to legacy schema if DB not migrated yet.
+  const trips = await (async () => {
+    try {
+      const rows = await db.trip.findMany({
+        where: {
+          OR: [
+            { organizerId: session.user.id },
+            {
+              participants: {
+                some: {
+                  userId: session.user.id,
+                },
+              },
+            },
+          ],
+        },
+        include: {
+          creator: {
+            select: { name: true, email: true },
+          },
+          participants: {
+            include: {
+              user: {
+                select: { id: true, name: true, image: true },
               },
             },
           },
-        ],
-      },
-      include: {
-        creator: {
-          select: { name: true, email: true },
         },
-        participants: {
-          include: {
-            user: {
-              select: { name: true, image: true },
+        orderBy: { startDate: "desc" },
+      });
+
+      return rows.map((trip) => ({
+        id: trip.id,
+        title: trip.title,
+        location: trip.location,
+        notes: trip.notes,
+        startDate: trip.startDate,
+        endDate: trip.endDate,
+        organizerId: trip.organizerId,
+        participantCount: trip.participants.length,
+      }));
+    } catch (error) {
+      console.error("Trips page roles-query failed, using fallback:", error);
+      const rows = await db.trip.findMany({
+        where: {
+          OR: [
+            { creatorId: session.user.id },
+            {
+              members: {
+                some: {
+                  userId: session.user.id,
+                  status: "accepted",
+                },
+              },
             },
+          ],
+        },
+        include: {
+          members: {
+            where: { status: "accepted" },
+            select: { id: true },
           },
         },
-      },
-      orderBy: { startDate: "desc" },
-    })
-    .catch((error) => {
-      console.error("Error fetching trips page data:", error);
-      return [];
-    });
+        orderBy: { startDate: "desc" },
+      });
+
+      return rows.map((trip) => ({
+        id: trip.id,
+        title: trip.title,
+        location: trip.location,
+        notes: trip.notes,
+        startDate: trip.startDate,
+        endDate: trip.endDate,
+        organizerId: trip.creatorId,
+        participantCount: trip.members.length + 1,
+      }));
+    }
+  })();
 
   // Separate upcoming and past trips
   const now = new Date();
@@ -136,8 +181,8 @@ interface TripCardProps {
     notes: string | null;
     startDate: Date;
     endDate: Date;
-    creator: { name: string | null; email: string };
-    participants: { user: { name: string | null; image: string | null } }[];
+    organizerId: string;
+    participantCount: number;
   };
   isOrganizer: boolean;
   isPast?: boolean;
@@ -170,7 +215,7 @@ function TripCard({ trip, isOrganizer, isPast }: TripCardProps) {
             {new Date(trip.startDate).toLocaleDateString("lt-LT")} -{" "}
             {new Date(trip.endDate).toLocaleDateString("lt-LT")}
           </span>
-          <span>👥 {trip.participants.length}</span>
+          <span>👥 {trip.participantCount}</span>
         </div>
       </div>
     </Link>

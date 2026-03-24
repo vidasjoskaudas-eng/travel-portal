@@ -11,46 +11,75 @@ export default async function DashboardPage() {
     redirect("/login");
   }
 
-  // Get user's trips (created or member of)
-  const trips = await db.trip.findMany({
-    where: {
-      OR: [
-        { creatorId: session.user.id },
-        {
-          members: {
-            some: {
-              userId: session.user.id,
-              status: "accepted",
+  // Get user's trips (try roles schema, fallback to legacy schema)
+  const trips = await (async () => {
+    try {
+      const rows = await db.trip.findMany({
+        where: {
+          OR: [
+            { organizerId: session.user.id },
+            {
+              participants: {
+                some: {
+                  userId: session.user.id,
+                },
+              },
             },
+          ],
+        },
+        include: {
+          participants: {
+            select: { id: true },
           },
         },
-      ],
-    },
-    include: {
-      creator: {
-        select: { name: true, email: true },
-      },
-      members: {
-        where: { status: "accepted" },
-        select: { id: true },
-      },
-    },
-    orderBy: { startDate: "asc" },
-    take: 5,
-  });
+        orderBy: { startDate: "asc" },
+        take: 5,
+      });
 
-  // Get pending invitations
-  const pendingInvites = await db.tripMember.findMany({
-    where: {
-      userId: session.user.id,
-      status: "pending",
-    },
-    include: {
-      trip: {
-        select: { title: true, location: true, startDate: true },
-      },
-    },
-  });
+      return rows.map((trip) => ({
+        id: trip.id,
+        title: trip.title,
+        location: trip.location,
+        startDate: trip.startDate,
+        endDate: trip.endDate,
+        participantCount: trip.participants.length,
+      }));
+    } catch (error) {
+      console.error("Dashboard roles-query failed, using fallback:", error);
+      const rows = await db.trip.findMany({
+        where: {
+          OR: [
+            { creatorId: session.user.id },
+            {
+              members: {
+                some: {
+                  userId: session.user.id,
+                  status: "accepted",
+                },
+              },
+            },
+          ],
+        },
+        include: {
+          members: {
+            where: { status: "accepted" },
+            select: { id: true },
+          },
+        },
+        orderBy: { startDate: "asc" },
+        take: 5,
+      });
+
+      return rows.map((trip) => ({
+        id: trip.id,
+        title: trip.title,
+        location: trip.location,
+        startDate: trip.startDate,
+        endDate: trip.endDate,
+        participantCount: trip.members.length + 1,
+      }));
+    }
+  })();
 
   const bgImage =
     "https://images.unsplash.com/photo-1540959733332-eab4deabeeaf?auto=format&fit=crop&w=1920&q=80";
@@ -78,38 +107,6 @@ export default async function DashboardPage() {
             <Button variant="dark">+ Nauja kelionė</Button>
           </Link>
         </div>
-
-        {/* Pending invitations */}
-        {pendingInvites.length > 0 && (
-          <div className="mb-8">
-            <h2 className="text-lg font-semibold text-white mb-4 drop-shadow">
-              Laukiantys kvietimai
-            </h2>
-            <div className="space-y-3">
-              {pendingInvites.map((invite) => (
-                <div
-                  key={invite.id}
-                  className="flex items-center justify-between py-3 px-4 rounded-lg bg-black/30 backdrop-blur-sm border border-white/20"
-                >
-                  <div>
-                    <p className="font-medium text-white">
-                      {invite.trip.title}
-                    </p>
-                    <p className="text-sm text-gray-200">
-                      {invite.trip.location} •{" "}
-                      {new Date(invite.trip.startDate).toLocaleDateString("lt-LT")}
-                    </p>
-                  </div>
-                  <div className="flex gap-2">
-                    <Link href={`/trips/${invite.tripId}`}>
-                      <Button variant="dark" size="sm">Peržiūrėti</Button>
-                    </Link>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
 
         {/* Upcoming trips */}
         <div>
@@ -151,7 +148,7 @@ export default async function DashboardPage() {
                         {new Date(trip.startDate).toLocaleDateString("lt-LT")} -{" "}
                         {new Date(trip.endDate).toLocaleDateString("lt-LT")}
                       </span>
-                      <span>👥 {trip.members.length + 1}</span>
+                      <span>👥 {trip.participantCount}</span>
                     </div>
                   </div>
                 </Link>
