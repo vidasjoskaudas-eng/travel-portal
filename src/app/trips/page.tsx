@@ -13,36 +13,39 @@ export default async function TripsPage() {
     redirect("/login");
   }
 
-  // Get all user's trips
-  const trips = await db.trip.findMany({
-    where: {
-      OR: [
-        { creatorId: session.user.id },
-        {
-          members: {
-            some: {
-              userId: session.user.id,
-              status: "accepted",
+  // Get all user's trips (roles via TripParticipant)
+  const trips = await db.trip
+    .findMany({
+      where: {
+        OR: [
+          { organizerId: session.user.id },
+          {
+            participants: {
+              some: {
+                userId: session.user.id,
+              },
+            },
+          },
+        ],
+      },
+      include: {
+        creator: {
+          select: { name: true, email: true },
+        },
+        participants: {
+          include: {
+            user: {
+              select: { name: true, image: true },
             },
           },
         },
-      ],
-    },
-    include: {
-      creator: {
-        select: { name: true, email: true },
       },
-      members: {
-        where: { status: "accepted" },
-        include: {
-          user: {
-            select: { name: true, image: true },
-          },
-        },
-      },
-    },
-    orderBy: { startDate: "desc" },
-  });
+      orderBy: { startDate: "desc" },
+    })
+    .catch((error) => {
+      console.error("Error fetching trips page data:", error);
+      return [];
+    });
 
   // Separate upcoming and past trips
   const now = new Date();
@@ -94,7 +97,7 @@ export default async function TripsPage() {
                 <TripCard
                   key={trip.id}
                   trip={trip}
-                  isCreator={trip.creatorId === session.user.id}
+                  isOrganizer={trip.organizerId === session.user.id}
                   isPast={false}
                 />
               ))}
@@ -113,7 +116,7 @@ export default async function TripsPage() {
                 <TripCard
                   key={trip.id}
                   trip={trip}
-                  isCreator={trip.creatorId === session.user.id}
+                  isOrganizer={trip.organizerId === session.user.id}
                   isPast
                 />
               ))}
@@ -134,13 +137,13 @@ interface TripCardProps {
     startDate: Date;
     endDate: Date;
     creator: { name: string | null; email: string };
-    members: { user: { name: string | null; image: string | null } }[];
+    participants: { user: { name: string | null; image: string | null } }[];
   };
-  isCreator: boolean;
+  isOrganizer: boolean;
   isPast?: boolean;
 }
 
-function TripCard({ trip, isCreator, isPast }: TripCardProps) {
+function TripCard({ trip, isOrganizer, isPast }: TripCardProps) {
   return (
     <Link href={`/trips/${trip.id}`}>
       <div
@@ -150,7 +153,7 @@ function TripCard({ trip, isCreator, isPast }: TripCardProps) {
       >
         <div className="flex items-start justify-between mb-2">
           <h3 className="font-semibold text-white">{trip.title}</h3>
-          {isCreator && (
+          {isOrganizer && (
             <span className="text-xs bg-blue-500/80 text-white px-2 py-0.5 rounded">
               Organizatorius
             </span>
@@ -167,7 +170,7 @@ function TripCard({ trip, isCreator, isPast }: TripCardProps) {
             {new Date(trip.startDate).toLocaleDateString("lt-LT")} -{" "}
             {new Date(trip.endDate).toLocaleDateString("lt-LT")}
           </span>
-          <span>👥 {trip.members.length + 1}</span>
+          <span>👥 {trip.participants.length}</span>
         </div>
       </div>
     </Link>
