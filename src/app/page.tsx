@@ -5,10 +5,7 @@ import { Button } from "@/components/ui/Button";
 import { FeatureCard } from "@/components/FeatureCard";
 
 export default async function Home() {
-  const session = await getServerSession(authOptions).catch((error) => {
-    console.error("Home session error:", error);
-    return null;
-  });
+  const session = await getServerSession(authOptions);
   const isLoggedIn = !!session?.user;
   return (
     <div className="relative min-h-[calc(100vh-4rem)]">
