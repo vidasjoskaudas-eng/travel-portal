@@ -77,6 +77,11 @@ export default async function TripDetailPage({ params }: Props) {
     >
       <div className="hero-overlay absolute inset-0" aria-hidden />
       <div className="relative z-10 max-w-5xl mx-auto px-4 py-8">
+        {isCreator && (
+          <div className="mb-4 bg-yellow-200 text-black p-2 text-sm font-semibold">
+            DEBUG BUILD 1 - YOU ARE ORGANIZER
+          </div>
+        )}
         {/* Header */}
         <div className="mb-8">
           <Link
