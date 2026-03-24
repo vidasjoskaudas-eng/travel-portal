@@ -5,6 +5,7 @@ import { authOptions } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { Button } from "@/components/ui/Button";
 import { DeleteTripButton } from "./DeleteTripButton";
+import { DeleteActivityButton } from "./DeleteActivityButton";
 
 interface Props {
   params: Promise<{ id: string }>;
@@ -206,8 +207,8 @@ export default async function TripDetailPage({ params }: Props) {
                       key={activity.id}
                       className="p-4 bg-white/10 rounded-lg border border-white/10"
                     >
-                      <div className="flex items-start justify-between">
-                        <div>
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="min-w-0 flex-1">
                           <h3 className="font-medium text-white">
                             {activity.title}
                           </h3>
@@ -221,11 +222,29 @@ export default async function TripDetailPage({ params }: Props) {
                             {activity.time && ` • ${activity.time}`}
                           </p>
                         </div>
-                        {activity.cost && (
-                          <span className="text-sm font-medium text-green-300">
-                            €{activity.cost.toFixed(2)}
-                          </span>
-                        )}
+                        <div className="flex flex-col items-end gap-2 shrink-0">
+                          {activity.cost != null && (
+                            <span className="text-sm font-medium text-green-300">
+                              €{activity.cost.toFixed(2)}
+                            </span>
+                          )}
+                          {isCreator && (
+                            <div className="flex flex-wrap gap-2 justify-end">
+                              <Link
+                                href={`/trips/${trip.id}/activities/${activity.id}/edit`}
+                              >
+                                <Button variant="dark" size="sm">
+                                  Redaguoti
+                                </Button>
+                              </Link>
+                              <DeleteActivityButton
+                                tripId={trip.id}
+                                activityId={activity.id}
+                                activityTitle={activity.title}
+                              />
+                            </div>
+                          )}
+                        </div>
                       </div>
                       {activity.description && (
                         <p className="text-sm text-gray-300 mt-2">
