@@ -30,7 +30,7 @@ Prisma naudoja tik `DATABASE_URL` (schema neturi `directUrl`). Supabase dashboar
 
 ### 1.3 Paleisti migracijas prieš production DB
 
-Kad production schema būtų tokia pati kaip local (User, Trip, TripMember ir t.t.):
+Kad production schema būtų tokia pati kaip local (User, Trip, TripParticipant ir t.t.):
 
 **Variantas A – iš savo kompiuterio (su prod URL):**
 
@@ -46,7 +46,9 @@ Kad production schema būtų tokia pati kaip local (User, Trip, TripMember ir t.
 
 - Įsitikink, kad `package.json` build arba postinstall **nepaleidžia** `prisma migrate deploy` automatiškai (dažniausiai deploy daromas rankiniu būdu arba per CI). Jei nori migracijas paleisti tik prieš prod DB, naudok **Variantą A** su prod `DATABASE_URL`.
 
-**Rezultatas:** Production DB turi lenteles `User`, `Trip`, `TripMember` ir t.t., kaip po `prisma migrate dev` local.
+**Rezultatas:** Production DB turi lenteles `User`, `Trip`, `TripParticipant` ir t.t., kaip po `prisma migrate dev` local.
+
+> Pastaba: `prisma/migrations_sqlite_backup/*` yra istorinės SQLite atsarginės migracijos (legacy) ir production'e nenaudojamos. Jos paliktos tik istorijai.
 
 ---
 
@@ -143,3 +145,18 @@ Jei local ir prod naudoja **skirtingas** DB, „tas pats X“ production’e rei
 | **RLS** | 500 / permission denied | Naudoti connection string su **postgres** role (Supabase Database → Connection string) |
 
 Kvietimo route ir UI logikos keisti nereikia – pakanka sutvarkyti aplinką, DB ir env, kad prod atitiktų local.
+
+---
+
+## 6. Supabase setup (Activity nuotraukoms local)
+
+1. Supabase Dashboard → **Project Settings** → **API**.
+2. Nukopijuokite `Project URL` ir `anon/publishable key`.
+3. Projekto šaknyje nukopijuokite `.env.local.example` į `.env.local` ir užpildykite:
+
+```env
+NEXT_PUBLIC_SUPABASE_URL=<cia mano URL>
+NEXT_PUBLIC_SUPABASE_ANON_KEY=<cia mano publishable key>
+```
+
+4. Perkraukite `npm run dev` ir patikrinkite Activity nuotraukų upload'ą.

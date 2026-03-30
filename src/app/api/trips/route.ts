@@ -29,21 +29,13 @@ export async function GET() {
               },
             },
           },
-          {
-            members: {
-              some: {
-                userId: session.user.id,
-                status: "accepted",
-              },
-            },
-          },
         ],
       },
       include: {
         creator: {
           select: { name: true, email: true },
         },
-        members: {
+        participants: {
           include: {
             user: {
               select: { name: true, email: true, image: true },

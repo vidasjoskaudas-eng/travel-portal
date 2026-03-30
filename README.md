@@ -28,6 +28,7 @@ NEXTAUTH_URL="http://localhost:3000"
 ```
 
 **Pastaba:** Production aplinkoje pakeiskite `NEXTAUTH_SECRET` į tikrą atsitiktinį slaptažodį.
+**Pastaba:** Supabase nuotraukų upload'ui nukopijuokite `.env.local.example` į `.env.local` ir užpildykite reikšmes.
 
 ### 3. Sukurkite duomenų bazę
 
@@ -75,7 +76,7 @@ src/
 
 - **User** - vartotojai
 - **Trip** - kelionės
-- **TripMember** - kelionės dalyviai (su kvietimo statusu)
+- **TripParticipant** - kelionės dalyviai (organizatorius ir dalyviai)
 - **Activity** - kelionės veiklos
 
 ## Production deployment
@@ -97,16 +98,47 @@ datasource db {
 DATABASE_URL="postgresql://user:password@host:5432/database"
 ```
 
-3. Paleiskite migraciją (prieš DB, į kurią rodo `DATABASE_URL`):
-
-```bash
-npm run db:deploy
-```
-arba `npx prisma migrate deploy`
+3. Production DB migracijos: `npm run build` jau paleidžia **`prisma migrate deploy`** prieš `next build` (Vercelyje būtina nustatyti `DATABASE_URL` build aplinkai). Rankiniu būdu: `npm run db:deploy`.
 
 4. Production’e nustatykite **NEXTAUTH_URL** (pvz. `https://travel-portal-mu.vercel.app`) ir **NEXTAUTH_SECRET**.
 
 **Kvietimo dalyvio funkcija production’e:** jei prod grąžina „Vartotojas su šiuo el. paštu nerastas“, o local veikia – žr. [docs/PRODUCTION-INVITE-SETUP.md](docs/PRODUCTION-INVITE-SETUP.md) (DB, migracijos, vartotojai prod DB, NEXTAUTH_URL, RLS).
+
+## Supabase setup (Activity nuotraukoms)
+
+1. Supabase Dashboard → **Project Settings** → **API**.
+2. Nukopijuokite **Project URL**, **anon/publishable key** ir **service_role key**.
+3. Nukopijuokite `.env.local.example` į `.env.local` ir įrašykite:
+
+```env
+NEXT_PUBLIC_SUPABASE_URL=<cia mano URL>
+NEXT_PUBLIC_SUPABASE_ANON_KEY=<cia mano publishable key>
+SUPABASE_SERVICE_ROLE_KEY=<cia mano service role key>
+```
+
+4. Perkraukite `npm run dev` ir patikrinkite Activity nuotraukų upload'ą.
+
+### Production (Vercel / hostingas)
+
+Hostinge nustatykite šiuos Environment Variables (Production):
+
+- `DATABASE_URL` (ta pati Supabase Postgres kaip local arba atskira prod DB)
+- `NEXTAUTH_URL` — pilnas tavo domenas, pvz. `https://tavo-projektas.vercel.app` (be slash pabaigoje)
+- `NEXTAUTH_SECRET` — tas pats slaptas kaip local arba naujas, bet stabilus
+- `AUTH_TRUST_HOST=true` — rekomenduojama Vercel / custom domenui (kad NextAuth priimtų viešą hostą)
+- `NEXT_PUBLIC_SUPABASE_URL`
+- `NEXT_PUBLIC_SUPABASE_ANON_KEY` (Publishable / `sb_publishable_...`)
+- `SUPABASE_SERVICE_ROLE_KEY` (Secret / `sb_secret_...` arba legacy `service_role` JWT)
+
+Po suvedimo padarykite **Redeploy**.
+
+Jei viešame URL upload neveikia: atsidarykite `https://<jūsų-domenas>/api/health/deployment` — skiltyje `env` visi laukai turi būti `true`. Jei `hasNextAuthUrl` arba `hasSupabaseServiceRole` yra `false`, sutvarkykite kintamuosius hostinge.
+
+### Test plan (dev/prod)
+
+- **Upload**: atsidarykite kelionę → veiklą → įkelkite nuotrauką + komentarą.
+- **Delete**: paspauskite **Šalinti** ant nuotraukos.
+- **Refresh**: perkraukite puslapį ir patikrinkite, kad sąrašas teisingas.
 
 ## Licencija
 

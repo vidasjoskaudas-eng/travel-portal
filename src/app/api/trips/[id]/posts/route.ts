@@ -24,12 +24,11 @@ export async function GET(
       where: {
         id: tripId,
         OR: [
-          { creatorId: session.user.id },
+          { organizerId: session.user.id },
           {
-            members: {
+            participants: {
               some: {
                 userId: session.user.id,
-                status: "accepted",
               },
             },
           },
@@ -82,12 +81,11 @@ export async function POST(
       where: {
         id: tripId,
         OR: [
-          { creatorId: session.user.id },
+          { organizerId: session.user.id },
           {
-            members: {
+            participants: {
               some: {
                 userId: session.user.id,
-                status: "accepted",
               },
             },
           },

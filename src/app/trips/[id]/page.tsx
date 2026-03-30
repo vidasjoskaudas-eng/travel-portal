@@ -6,12 +6,17 @@ import { db } from "@/lib/db";
 import { Button } from "@/components/ui/Button";
 import { DeleteTripButton } from "./DeleteTripButton";
 import { DeleteActivityButton } from "./DeleteActivityButton";
+import { ActivityMediaSection } from "./ActivityMediaSection";
 
 interface Props {
   params: Promise<{ id: string }>;
 }
 
 export default async function TripDetailPage({ params }: Props) {
+  if (process.env.NODE_ENV !== "production") {
+    console.log("SERVER_SUPABASE_URL", process.env.NEXT_PUBLIC_SUPABASE_URL);
+  }
+
   const session = await getServerSession(authOptions);
   const { id } = await params;
   const tripId = parseInt(id, 10);
@@ -23,116 +28,34 @@ export default async function TripDetailPage({ params }: Props) {
     redirect("/login");
   }
 
-  // Get trip data (roles schema first, fallback to legacy schema)
-  let trip:
-    | {
-        id: number;
-        title: string;
-        location: string;
-        notes: string | null;
-        startDate: Date;
-        endDate: Date;
-        creatorId: string;
-        organizerId: string;
-        creator: { id: string; name: string | null; email: string; image: string | null };
-        activities: Array<{
-          id: string;
-          title: string;
-          description: string | null;
-          location: string | null;
-          date: Date;
-          time: string | null;
-          cost: number | null;
-        }>;
-        participants: Array<{
-          id: string;
-          userId: string;
-          role: "ORGANIZER" | "PARTICIPANT";
-          user: { id: string; name: string | null; email: string; image: string | null };
-        }>;
-      }
-    | null = null;
-
-  try {
-    const row = await db.trip.findUnique({
-      where: { id: tripId },
-      include: {
-        creator: {
-          select: { id: true, name: true, email: true, image: true },
-        },
-        participants: {
-          include: {
-            user: {
-              select: { id: true, name: true, email: true, image: true },
-            },
+  const trip = await db.trip.findUnique({
+    where: { id: tripId },
+    include: {
+      creator: {
+        select: { id: true, name: true, email: true, image: true },
+      },
+      participants: {
+        include: {
+          user: {
+            select: { id: true, name: true, email: true, image: true },
           },
-        },
-        activities: {
-          orderBy: { date: "asc" },
         },
       },
-    });
-
-    if (row) {
-      trip = {
-        ...row,
-        participants: row.participants.map((p) => ({
-          ...p,
-          role: p.role === "ORGANIZER" ? "ORGANIZER" : "PARTICIPANT",
-        })),
-      };
-    }
-  } catch (error) {
-    console.error("Trip detail roles-query failed, using fallback:", error);
-    const row = await db.trip.findUnique({
-      where: { id: tripId },
-      include: {
-        creator: {
-          select: { id: true, name: true, email: true, image: true },
-        },
-        members: {
-          where: { status: "accepted" },
-          include: {
-            user: {
-              select: { id: true, name: true, email: true, image: true },
+      activities: {
+        orderBy: { date: "asc" },
+        include: {
+          media: {
+            include: {
+              user: {
+                select: { id: true, name: true, email: true, image: true },
+              },
             },
+            orderBy: { createdAt: "desc" },
           },
-        },
-        activities: {
-          orderBy: { date: "asc" },
         },
       },
-    });
-
-    if (row) {
-      trip = {
-        id: row.id,
-        title: row.title,
-        location: row.location,
-        notes: row.notes,
-        startDate: row.startDate,
-        endDate: row.endDate,
-        creatorId: row.creatorId,
-        organizerId: row.creatorId,
-        creator: row.creator,
-        activities: row.activities,
-        participants: [
-          {
-            id: `creator-${row.creator.id}`,
-            userId: row.creator.id,
-            role: "ORGANIZER" as const,
-            user: row.creator,
-          },
-          ...row.members.map((m) => ({
-            id: m.id,
-            userId: m.userId,
-            role: "PARTICIPANT" as const,
-            user: m.user,
-          })),
-        ],
-      };
-    }
-  }
+    },
+  });
 
   if (!trip) {
     notFound();
@@ -313,6 +236,20 @@ export default async function TripDetailPage({ params }: Props) {
                           {activity.description}
                         </p>
                       )}
+                      <ActivityMediaSection
+                        tripId={trip.id}
+                        activityId={activity.id}
+                        canUpload={isOrganizer || isParticipant}
+                        currentUserId={session.user.id}
+                        canModerateMedia={isOrganizer}
+                        initialMedia={activity.media.map((media) => ({
+                          id: media.id,
+                          imageUrl: media.imageUrl,
+                          comment: media.comment,
+                          createdAt: media.createdAt.toISOString(),
+                          user: media.user,
+                        }))}
+                      />
                     </div>
                   ))}
                 </div>

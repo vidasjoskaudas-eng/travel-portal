@@ -17,7 +17,7 @@ export async function POST(
       return NextResponse.json({ error: "Neteisingas kelionės ID" }, { status: 400 });
     }
 
-    if (!session?.user) {
+    if (!session?.user?.id) {
       return NextResponse.json({ error: "Neprisijungęs" }, { status: 401 });
     }
 
@@ -66,7 +66,7 @@ export async function POST(
     }
 
     // Check if already invited
-    const existingMember = await db.tripMember.findUnique({
+    const existingMember = await db.tripParticipant.findUnique({
       where: {
         tripId_userId: {
           tripId,
@@ -83,12 +83,11 @@ export async function POST(
     }
 
     // Create invitation
-    const member = await db.tripMember.create({
+    const member = await db.tripParticipant.create({
       data: {
         tripId,
         userId: invitedUser.id,
-        status: "pending",
-        role: "member",
+        role: "PARTICIPANT",
       },
     });
 

@@ -11,75 +11,27 @@ export default async function DashboardPage() {
     redirect("/login");
   }
 
-  // Get user's trips (try roles schema, fallback to legacy schema)
-  const trips = await (async () => {
-    try {
-      const rows = await db.trip.findMany({
-        where: {
-          OR: [
-            { organizerId: session.user.id },
-            {
-              participants: {
-                some: {
-                  userId: session.user.id,
-                },
-              },
-            },
-          ],
-        },
-        include: {
+  const trips = await db.trip.findMany({
+    where: {
+      OR: [
+        { organizerId: session.user.id },
+        {
           participants: {
-            select: { id: true },
-          },
-        },
-        orderBy: { startDate: "asc" },
-        take: 5,
-      });
-
-      return rows.map((trip) => ({
-        id: trip.id,
-        title: trip.title,
-        location: trip.location,
-        startDate: trip.startDate,
-        endDate: trip.endDate,
-        participantCount: trip.participants.length,
-      }));
-    } catch (error) {
-      console.error("Dashboard roles-query failed, using fallback:", error);
-      const rows = await db.trip.findMany({
-        where: {
-          OR: [
-            { creatorId: session.user.id },
-            {
-              members: {
-                some: {
-                  userId: session.user.id,
-                  status: "accepted",
-                },
-              },
+            some: {
+              userId: session.user.id,
             },
-          ],
-        },
-        include: {
-          members: {
-            where: { status: "accepted" },
-            select: { id: true },
           },
         },
-        orderBy: { startDate: "asc" },
-        take: 5,
-      });
-
-      return rows.map((trip) => ({
-        id: trip.id,
-        title: trip.title,
-        location: trip.location,
-        startDate: trip.startDate,
-        endDate: trip.endDate,
-        participantCount: trip.members.length + 1,
-      }));
-    }
-  })();
+      ],
+    },
+    include: {
+      participants: {
+        select: { id: true },
+      },
+    },
+    orderBy: { startDate: "asc" },
+    take: 5,
+  });
 
   const bgImage =
     "https://images.unsplash.com/photo-1540959733332-eab4deabeeaf?auto=format&fit=crop&w=1920&q=80";
@@ -148,7 +100,7 @@ export default async function DashboardPage() {
                         {new Date(trip.startDate).toLocaleDateString("lt-LT")} -{" "}
                         {new Date(trip.endDate).toLocaleDateString("lt-LT")}
                       </span>
-                      <span>👥 {trip.participantCount}</span>
+                      <span>👥 {trip.participants.length}</span>
                     </div>
                   </div>
                 </Link>

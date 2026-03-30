@@ -25,8 +25,8 @@ model User {
   sessions          Session[]
   createdTrips      Trip[]            @relation("TripCreator")
   organizedTrips    Trip[]            @relation("TripOrganizer")
-  tripMembers       TripMember[]
   tripParticipants  TripParticipant[]
+  activityMedia     ActivityMedia[]
   posts             Post[]
   ideas             Idea[]
 }
@@ -84,7 +84,6 @@ model Trip {
   organizerId String
   organizer   User   @relation("TripOrganizer", fields: [organizerId], references: [id], onDelete: Cascade)
 
-  members    TripMember[]
   participants TripParticipant[]
   activities Activity[]
   posts      Post[]
@@ -105,20 +104,6 @@ model Post {
 }
 
 // Trip membership - who's invited/joined
-model TripMember {
-  id       String   @id @default(cuid())
-  tripId   Int
-  userId   String
-  role     String   @default("member")
-  status   String   @default("pending")
-  joinedAt DateTime @default(now())
-
-  trip Trip @relation(fields: [tripId], references: [id], onDelete: Cascade)
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@unique([tripId, userId])
-}
-
 enum TripParticipantRole {
   ORGANIZER
   PARTICIPANT
@@ -150,6 +135,23 @@ model Activity {
   updatedAt   DateTime @updatedAt
 
   trip Trip @relation(fields: [tripId], references: [id], onDelete: Cascade)
+  media ActivityMedia[]
+}
+
+model ActivityMedia {
+  id         Int      @id @default(autoincrement())
+  activityId String
+  userId     String
+  path       String
+  imageUrl   String
+  comment    String
+  createdAt  DateTime @default(now())
+
+  activity Activity @relation(fields: [activityId], references: [id], onDelete: Cascade)
+  user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([activityId])
+  @@index([userId])
 }
 
 // Idėjų lenta – diskusijos / idėjos (Bendradarbiaukite)

@@ -24,8 +24,8 @@ export async function POST(
     const trip = await db.trip.findUnique({
       where: { id: tripId },
       include: {
-        members: {
-          where: { userId: session.user.id, status: "accepted" },
+        participants: {
+          where: { userId: session.user.id },
         },
       },
     });
@@ -36,7 +36,7 @@ export async function POST(
 
     const isCreator =
       trip.organizerId === session.user.id || trip.creatorId === session.user.id;
-    const isMember = trip.members.length > 0;
+    const isMember = trip.participants.length > 0;
 
     if (!isCreator && !isMember) {
       return NextResponse.json(
@@ -101,7 +101,7 @@ export async function GET(
     const trip = await db.trip.findUnique({
       where: { id: tripId },
       include: {
-        members: {
+        participants: {
           where: { userId: session.user.id },
         },
       },
@@ -113,8 +113,8 @@ export async function GET(
 
     const isCreator =
       trip.organizerId === session.user.id || trip.creatorId === session.user.id;
-    const isMember = trip.members.some((m) => m.status === "accepted");
-    const isPending = trip.members.some((m) => m.status === "pending");
+    const isMember = trip.participants.length > 0;
+    const isPending = false;
 
     if (!isCreator && !isMember && !isPending) {
       return NextResponse.json(
